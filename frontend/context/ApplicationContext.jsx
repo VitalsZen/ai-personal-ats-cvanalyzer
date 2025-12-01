@@ -210,6 +210,16 @@ const ApplicationContext = createContext(undefined);
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || 'http://127.0.0.1:8000';
 const API_URL = `${API_BASE}/api/applications`;
 
+// --- NEW: Helper function để lấy hoặc tạo Session ID ---
+const getSessionId = () => {
+    let id = localStorage.getItem('careerflow_session_id');
+    if (!id) {
+        id = crypto.randomUUID(); // Sinh ID ngẫu nhiên
+        localStorage.setItem('careerflow_session_id', id);
+    }
+    return id;
+};
+
 export const ApplicationProvider = ({ children }) => {
   const [applications, setApplications] = useState([]);
   const [totalAnalyses, setTotalAnalyses] = useState(0);
@@ -241,24 +251,31 @@ export const ApplicationProvider = ({ children }) => {
     matchScore: item.match_score ?? item.matchScore ?? 0,
     dateApplied: item.created_at 
       ? new Date(item.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-      : (item.dateApplied || 'N/A'),    analysisResult: item.analysis_result || item.analysisResult || null,
+      : (item.dateApplied || 'N/A'),
+    analysisResult: item.analysis_result || item.analysisResult || null,
     jdContent: item.jd_content || '', 
     logo: `https://ui-avatars.com/api/?name=${encodeURIComponent(item.company_name || item.companyName || '')}&background=random`
   });
 
   const fetchApplications = async () => {
     try {
-      const res = await fetch(API_URL);
+      // --- CHANGE: Thêm Header ---
+      const res = await fetch(API_URL, {
+          headers: {
+              'x-session-id': getSessionId()
+          }
+      });
       if (!res.ok) throw new Error('Failed to fetch applications');
       const data = await res.json();
       const mapped = Array.isArray(data) ? data.map(mapApp) : [];
       setApplications(mapped);
-      setTotalAnalyses(mapped.length + 120);
+      setTotalAnalyses(mapped.length + 120); // Fake base number
     } catch (err) {
       console.error('fetchApplications error:', err);
     }
   };
 
+  // ... (Các hàm notification giữ nguyên) ...
   const addNotification = (title, message) => {
     const newNotif = {
         id: Date.now(),
@@ -294,8 +311,12 @@ export const ApplicationProvider = ({ children }) => {
         formData.append("jd_text", jdText);
       }
 
+      // --- CHANGE: Thêm Header (lưu ý không set Content-Type với FormData) ---
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: "POST",
+        headers: {
+            'x-session-id': getSessionId()
+        },
         body: formData,
       });
 
@@ -332,11 +353,7 @@ export const ApplicationProvider = ({ children }) => {
     } catch (error) {
       console.error("Background Analysis Failed:", error);
       setIsAnalyzing(false);
-      
-      // --- TRIGGER NOTIFICATION KHI LỖI ---
-      addNotification("Analysis Failed", error.message || "An error occurred during analysis.");
-      // ------------------------------------
-      
+      addNotification("Analysis Failed", error.message || "An error occurred.");
       alert("Phân tích thất bại: " + error.message);
       throw error;
     }
@@ -353,9 +370,13 @@ export const ApplicationProvider = ({ children }) => {
     };
 
     try {
+      // --- CHANGE: Thêm Header ---
       const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'x-session-id': getSessionId() 
+        },
         body: JSON.stringify(payload)
       });
 
@@ -364,9 +385,7 @@ export const ApplicationProvider = ({ children }) => {
         const mapped = mapApp(created);
         setApplications(prev => [mapped, ...prev]);
         incrementAnalysisCount();
-        
         addNotification("Application Saved", `Saved "${newApp.jobTitle}" to your pipeline.`);
-        
         return mapped;
       } else {
         const txt = await res.text();
@@ -384,9 +403,13 @@ export const ApplicationProvider = ({ children }) => {
       if (updates.jobTitle) payload.job_title = updates.jobTitle;
       if (updates.companyName) payload.company_name = updates.companyName;
 
+      // --- CHANGE: Thêm Header ---
       const res = await fetch(`${API_URL}/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'x-session-id': getSessionId()
+        },
         body: JSON.stringify(payload)
       });
 
@@ -408,7 +431,13 @@ export const ApplicationProvider = ({ children }) => {
 
   const deleteApplication = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      // --- CHANGE: Thêm Header ---
+      const res = await fetch(`${API_URL}/${id}`, { 
+          method: 'DELETE',
+          headers: {
+              'x-session-id': getSessionId()
+          }
+      });
       if (res.ok) {
         setApplications(prev => prev.filter(app => app.id !== String(id)));
       } else {
@@ -450,7 +479,6 @@ export const ApplicationProvider = ({ children }) => {
       lastJdSource,
       runBackgroundAnalysis,
 
-      // Export Notification Props
       notifications,
       unreadCount,
       markAllAsRead,

@@ -5,10 +5,10 @@ from sqlmodel import Field, SQLModel
 
 class JobDescription(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: str = Field(index=True)  # <--- THÊM DÒNG NÀY
     title: str
     company: Optional[str] = None
     content: str
-    # Tự động lấy giờ hiện tại khi tạo
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = Field(default_factory=datetime.now)
 
@@ -19,6 +19,7 @@ class JobDescriptionUpdate(SQLModel):
 
 class Application(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: str = Field(index=True)  # <--- THÊM DÒNG NÀY
     job_title: str
     company_name: str 
     status: str = Field(default="new")

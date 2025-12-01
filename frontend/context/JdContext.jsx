@@ -6,6 +6,16 @@ const JdContext = createContext(undefined);
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || 'http://127.0.0.1:8000';
 const JD_API = `${API_BASE}/api/jds`;
 
+// --- NEW: Helper lấy Session ID (Giống ApplicationContext) ---
+const getSessionId = () => {
+    let id = localStorage.getItem('careerflow_session_id');
+    if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem('careerflow_session_id', id);
+    }
+    return id;
+};
+
 export const JdProvider = ({ children }) => {
   const [jds, setJds] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +36,12 @@ export const JdProvider = ({ children }) => {
   const fetchJds = async () => {
     setLoading(true);
     try {
-      const res = await fetch(JD_API);
+      // --- CHANGE: Thêm Header ---
+      const res = await fetch(JD_API, {
+          headers: {
+              'x-session-id': getSessionId()
+          }
+      });
       if (!res.ok) throw new Error('Failed to load JDs');
       const data = await res.json();
       setJds(Array.isArray(data) ? data.map(mapJd) : []);
@@ -39,16 +54,20 @@ export const JdProvider = ({ children }) => {
 
   const addJd = async (jd) => {
     try {
+      // --- CHANGE: Thêm Header ---
       const res = await fetch(JD_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'x-session-id': getSessionId()
+        },
         body: JSON.stringify(jd)
       });
       if (res.ok) {
         const created = await res.json();
         const mapped = mapJd(created);
         setJds(prev => [mapped, ...prev]);
-        return true; // Trả về true để báo thành công
+        return true; 
       }
     } catch (err) {
       console.error('addJd error:', err);
@@ -56,20 +75,22 @@ export const JdProvider = ({ children }) => {
     return false;
   };
 
-  // --- HÀM UPDATE QUAN TRỌNG ---
   const updateJd = async (id, updates) => {
     try {
       console.log(`Sending PATCH to ${JD_API}/${id}`, updates);
+      // --- CHANGE: Thêm Header ---
       const res = await fetch(`${JD_API}/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'x-session-id': getSessionId()
+        },
         body: JSON.stringify(updates)
       });
       
       if (res.ok) {
         const updatedItem = await res.json();
         const mapped = mapJd(updatedItem);
-        // Cập nhật State ngay lập tức
         setJds(prev => prev.map(jd => jd.id === String(id) ? mapped : jd));
         return true;
       } else {
@@ -86,7 +107,13 @@ export const JdProvider = ({ children }) => {
 
   const deleteJd = async (id) => {
     try {
-      const res = await fetch(`${JD_API}/${id}`, { method: 'DELETE' });
+      // --- CHANGE: Thêm Header ---
+      const res = await fetch(`${JD_API}/${id}`, { 
+          method: 'DELETE',
+          headers: {
+              'x-session-id': getSessionId()
+          }
+      });
       if (res.ok) {
         setJds(prev => prev.filter(j => j.id !== String(id)));
       }
