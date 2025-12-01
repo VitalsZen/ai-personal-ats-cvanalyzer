@@ -9,15 +9,16 @@ from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
+# ĐỔI TỪ GOOGLE SANG HUGGINGFACE
+from langchain_huggingface import HuggingFaceEmbeddings 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from pydantic import BaseModel, Field
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 load_dotenv()
 
-# --- DATA MODELS (Giữ nguyên) ---
+# --- DATA MODELS ---
 class JobMatchResult(BaseModel):
     personal_info: Dict[str, str] = Field(description="Name, position, experience extracted from CV")
     matching_score: Dict[str, Union[int, str]] = Field(description="Percentage score and explanation")
@@ -112,7 +113,6 @@ _embedding_instance = None
 def get_llm():
     global _llm_instance
     if _llm_instance is None:
-        # Chỉ khởi tạo khi được gọi lần đầu
         _llm_instance = ChatGoogleGenerativeAI(
             model="gemini-flash-latest", 
             temperature=0.2,
@@ -120,23 +120,24 @@ def get_llm():
         )
     return _llm_instance
 
-
-
-
-# 2. Sửa hàm get_embeddings
 def get_embeddings():
-    # Sử dụng Google Embeddings thay vì HuggingFace để không tốn RAM server
-    return GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001", 
-        google_api_key=os.getenv("GOOGLE_API_KEY")
-    )
+    global _embedding_instance
+    if _embedding_instance is None:
+        # CHUYỂN VỀ DÙNG HUGGING FACE (Local CPU)
+        # Model này nhẹ, chạy tốt trên CPU, không tốn tiền API
+        _embedding_instance = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+    return _embedding_instance
 
 def analyze_cv_logic(file_path: str, jd_text: str):
     """
     Logic chính: Đọc PDF -> Vector Store -> LLM -> JSON
     """
     if not os.getenv("GOOGLE_API_KEY"):
-        return {"error": "GOOGLE_API_KEY not found in .env"}
+        return {"error": "GOOGLE_API_KEY not found env"}
 
     # 1. Xử lý PDF
     try:
@@ -150,10 +151,10 @@ def analyze_cv_logic(file_path: str, jd_text: str):
     except Exception as e:
         return {"error": f"Lỗi đọc PDF: {str(e)}"}
 
-    # 2. Vector Store & Chain (Lazy Load ở đây)
+    # 2. Vector Store & Chain
     try:
-        embeddings = get_embeddings() # <--- Tải model ở đây
-        llm = get_llm()              # <--- Tải LLM ở đây
+        embeddings = get_embeddings()
+        llm = get_llm()
 
         vectorstore = Chroma.from_documents(
             documents=splits,
