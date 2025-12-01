@@ -1,41 +1,31 @@
+# backend/database.py
 import os
-
 from sqlmodel import SQLModel, create_engine, Session
 
+# 1. Lấy biến môi trường DATABASE_URL (Do Render cung cấp)
+# Nếu không có (đang chạy local), thì dùng file database.db
+database_url = os.getenv("DATABASE_URL")
 
-
-# 1. Xác định vị trí lưu file database.db (ngay tại thư mục backend)
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-sqlite_file_name = os.path.join(BASE_DIR, "database.db")
-
-sqlite_url = f"sqlite:///{sqlite_file_name}"
-
-
-
-# 2. Tạo Engine kết nối (check_same_thread=False cần thiết cho SQLite)
-
-connect_args = {"check_same_thread": False}
-
-engine = create_engine(sqlite_url, connect_args=connect_args)
-
-
-
-# 3. Hàm tạo bảng (chạy khi server khởi động)
+if database_url:
+    # --- CẤU HÌNH CHO RENDER (POSTGRESQL) ---
+    # Fix lỗi thư viện cũ: đổi postgres:// thành postgresql://
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    
+    # Kết nối Postgres
+    engine = create_engine(database_url, echo=False)
+else:
+    # --- CẤU HÌNH CHO LOCAL (SQLITE) ---
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    sqlite_file_name = os.path.join(BASE_DIR, "database.db")
+    sqlite_url = f"sqlite:///{sqlite_file_name}"
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(sqlite_url, connect_args=connect_args)
 
 def create_db_and_tables():
-
-    # Nó sẽ tìm tất cả class kế thừa SQLModel và tạo bảng tương ứng
-
+    # Tạo bảng nếu chưa có
     SQLModel.metadata.create_all(engine)
 
-
-
-# 4. Dependency để lấy session làm việc với DB
-
 def get_session():
-
     with Session(engine) as session:
-
         yield session
