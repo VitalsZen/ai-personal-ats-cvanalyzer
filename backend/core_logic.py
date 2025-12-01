@@ -9,7 +9,7 @@ from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
-# ĐỔI TỪ GOOGLE SANG HUGGINGFACE
+# VẪN DÙNG HUGGING FACE CHO EMBEDDINGS (Để tránh lỗi API Google khi Embedding)
 from langchain_huggingface import HuggingFaceEmbeddings 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
@@ -106,25 +106,30 @@ Chỉ trả về 1 JSON duy nhất, không có markdown, không có lời dẫn.
 }}
 """
 
-# --- GLOBAL VARIABLES (LAZY LOADING) ---
 _llm_instance = None
 _embedding_instance = None
 
 def get_llm():
     global _llm_instance
     if _llm_instance is None:
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            print("❌ LỖI NGHIÊM TRỌNG: Không tìm thấy GOOGLE_API_KEY trong biến môi trường!")
+        else:
+            print(f"✅ Đã tìm thấy API Key: {api_key[:5]}... (ẩn phần sau)")
+            
+        # Quay lại dùng gemini-flash-latest theo ý bạn
         _llm_instance = ChatGoogleGenerativeAI(
             model="gemini-flash-latest", 
             temperature=0.2,
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            google_api_key=api_key
         )
     return _llm_instance
 
 def get_embeddings():
     global _embedding_instance
     if _embedding_instance is None:
-        # CHUYỂN VỀ DÙNG HUGGING FACE (Local CPU)
-        # Model này nhẹ, chạy tốt trên CPU, không tốn tiền API
+        # Dùng Hugging Face (CPU) để không cần Key Google ở bước này
         _embedding_instance = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={'device': 'cpu'},
@@ -133,11 +138,8 @@ def get_embeddings():
     return _embedding_instance
 
 def analyze_cv_logic(file_path: str, jd_text: str):
-    """
-    Logic chính: Đọc PDF -> Vector Store -> LLM -> JSON
-    """
     if not os.getenv("GOOGLE_API_KEY"):
-        return {"error": "GOOGLE_API_KEY not found env"}
+        return {"error": "Server chưa nhận được GOOGLE_API_KEY. Hãy kiểm tra Settings trên Hugging Face."}
 
     # 1. Xử lý PDF
     try:
@@ -145,7 +147,7 @@ def analyze_cv_logic(file_path: str, jd_text: str):
         docs = loader.load()
         if not docs:
             return {"error": "Không thể đọc nội dung từ file PDF."}
-            
+        
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         splits = text_splitter.split_documents(docs)
     except Exception as e:
@@ -156,6 +158,7 @@ def analyze_cv_logic(file_path: str, jd_text: str):
         embeddings = get_embeddings()
         llm = get_llm()
 
+        # Nếu lỗi xảy ra ở dòng này -> Code chưa cập nhật (vẫn dùng Google Embeddings)
         vectorstore = Chroma.from_documents(
             documents=splits,
             embedding=embeddings,
@@ -177,12 +180,13 @@ def analyze_cv_logic(file_path: str, jd_text: str):
             | parser
         )
 
-        print("🤖 Đang phân tích với Gemini 1.5 Flash...")
+        print("🤖 Đang phân tích với Gemini Flash Latest...")
         result = chain.invoke(jd_text)
         
-        # Cleanup
         vectorstore.delete_collection() 
         return result
 
     except Exception as e:
+        # In lỗi chi tiết ra console server để debug
+        print(f"❌ LỖI PHÂN TÍCH: {str(e)}")
         return {"error": f"Lỗi phân tích AI: {str(e)}"}
