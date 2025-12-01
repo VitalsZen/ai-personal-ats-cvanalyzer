@@ -1,25 +1,23 @@
 # backend/core_logic.py
 import os
 import time
-import shutil
 from dotenv import load_dotenv
 from typing import List, Dict, Union
 
-# --- LangChain Modern Imports ---
+# --- Imports ---
 from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_chroma import Chroma  # New package
-from langchain_huggingface import HuggingFaceEmbeddings # New package
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from pydantic import BaseModel, Field
 
-# Load biến môi trường
 load_dotenv()
 
-# --- DATA MODELS (Pydantic v2) ---
+# --- DATA MODELS (Giữ nguyên) ---
 class JobMatchResult(BaseModel):
     personal_info: Dict[str, str] = Field(description="Name, position, experience extracted from CV")
     matching_score: Dict[str, Union[int, str]] = Field(description="Percentage score and explanation")
@@ -28,7 +26,6 @@ class JobMatchResult(BaseModel):
     radar_chart: Dict[str, int] = Field(description="Scores 1-10 for 5 dimensions")
     bilingual_content: Dict[str, Union[Dict, List]] = Field(description="Assessment content in EN and VI")
 
-# --- PROMPT (Giữ nguyên logic cũ) ---
 CORE_PROMPT = """
 Bạn là một Trợ lý Tuyển dụng AI chuyên nghiệp (JobMatchr). Nhiệm vụ của bạn là phân tích CV (được cung cấp dưới dạng text) và Mô tả công việc (JD - mỗi dòng là một yêu cầu).
 
@@ -108,30 +105,36 @@ Chỉ trả về 1 JSON duy nhất, không có markdown, không có lời dẫn.
 }}
 """
 
-# --- KHỞI TẠO RESOURCES (Lazy loading tốt hơn cho Server) ---
+# --- GLOBAL VARIABLES (LAZY LOADING) ---
+_llm_instance = None
+_embedding_instance = None
+
 def get_llm():
-    # Sử dụng gemini-1.5-flash vì nhanh và rẻ hơn cho tác vụ đọc văn bản
-    return ChatGoogleGenerativeAI(
-        model="gemini-flash-latest", 
-        temperature=0.2,
-        google_api_key=os.getenv("GOOGLE_API_KEY")
-    )
+    global _llm_instance
+    if _llm_instance is None:
+        # Chỉ khởi tạo khi được gọi lần đầu
+        _llm_instance = ChatGoogleGenerativeAI(
+            model="gemini-flash-latest", 
+            temperature=0.2,
+            google_api_key=os.getenv("GOOGLE_API_KEY")
+        )
+    return _llm_instance
 
 def get_embeddings():
-    # Sử dụng device='cpu' để đảm bảo chạy được trên mọi server thường
-    return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={'device': 'cpu'},
-        encode_kwargs={'normalize_embeddings': True}
-    )
+    global _embedding_instance
+    if _embedding_instance is None:
+        # Chỉ tải model khi được gọi lần đầu
+        _embedding_instance = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+    return _embedding_instance
 
 def analyze_cv_logic(file_path: str, jd_text: str):
     """
-    Xử lý logic chính: Đọc PDF -> Vector Store -> LLM -> JSON
+    Logic chính: Đọc PDF -> Vector Store -> LLM -> JSON
     """
-    llm = get_llm()
-    embeddings = get_embeddings()
-
     if not os.getenv("GOOGLE_API_KEY"):
         return {"error": "GOOGLE_API_KEY not found in .env"}
 
@@ -147,45 +150,38 @@ def analyze_cv_logic(file_path: str, jd_text: str):
     except Exception as e:
         return {"error": f"Lỗi đọc PDF: {str(e)}"}
 
-    # 2. Vector Store (In-Memory cho mỗi Request để tránh rác ổ cứng)
-    # Với Python 3.13 và LangChain mới, ta không cần persist xuống đĩa cho tác vụ này
+    # 2. Vector Store & Chain (Lazy Load ở đây)
     try:
+        embeddings = get_embeddings() # <--- Tải model ở đây
+        llm = get_llm()              # <--- Tải LLM ở đây
+
         vectorstore = Chroma.from_documents(
             documents=splits,
             embedding=embeddings,
             collection_name=f"cv_analysis_{int(time.time())}",
-            # Không set persist_directory để chạy in-memory (nhanh hơn và tự hủy khi xong)
         )
         retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-    except Exception as e:
-        return {"error": f"Lỗi khởi tạo Vector DB: {str(e)}"}
 
-    # 3. Định nghĩa Chain
-    parser = JsonOutputParser(pydantic_object=JobMatchResult)
-    
-    prompt = ChatPromptTemplate.from_template(CORE_PROMPT)
-    
-    # Inject format instructions vào prompt
-    prompt = prompt.partial(format_instructions=parser.get_format_instructions())
+        parser = JsonOutputParser(pydantic_object=JobMatchResult)
+        prompt = ChatPromptTemplate.from_template(CORE_PROMPT)
+        prompt = prompt.partial(format_instructions=parser.get_format_instructions())
 
-    def format_docs(docs):
-        return "\n\n".join(d.page_content for d in docs)
+        def format_docs(docs):
+            return "\n\n".join(d.page_content for d in docs)
 
-    chain = (
-        {"cv_text": retriever | format_docs, "jd_text": RunnablePassthrough()}
-        | prompt
-        | llm
-        | parser
-    )
+        chain = (
+            {"cv_text": retriever | format_docs, "jd_text": RunnablePassthrough()}
+            | prompt
+            | llm
+            | parser
+        )
 
-    # 4. Chạy và trả về kết quả
-    try:
         print("🤖 Đang phân tích với Gemini 1.5 Flash...")
         result = chain.invoke(jd_text)
         
-        # Cleanup thủ công nếu cần (dù in-memory sẽ tự giải phóng)
+        # Cleanup
         vectorstore.delete_collection() 
-        
         return result
+
     except Exception as e:
         return {"error": f"Lỗi phân tích AI: {str(e)}"}
