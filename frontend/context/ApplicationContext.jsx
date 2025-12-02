@@ -326,9 +326,10 @@ export const ApplicationProvider = ({ children }) => {
       jobTitle: item.job_title || item.jobTitle || '',
       status: item.status || 'new',
       matchScore: item.match_score ?? item.matchScore ?? 0,
-      dateApplied: formattedDate,
       analysisResult: item.analysis_result || item.analysisResult || null,
       jdContent: item.jd_content || '', 
+      createdAt: item.created_at, 
+      dateApplied: formattedDate, 
       logo: `https://ui-avatars.com/api/?name=${encodeURIComponent(item.company_name || item.companyName || '')}&background=random`
     };
   };
