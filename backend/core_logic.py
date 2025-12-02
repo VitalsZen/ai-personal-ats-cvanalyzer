@@ -140,7 +140,7 @@ def get_llm():
             
         # [FIX] Dùng gemini-1.5-flash để ổn định và thông minh hơn
         _llm_instance = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash", 
+            model="gemini-flash-latest", 
             temperature=0.2,
             google_api_key=api_key
         )
