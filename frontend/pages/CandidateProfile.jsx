@@ -3,7 +3,6 @@ import { Layout } from "../components/Layout";
 import { Icon } from "../components/Icon";
 import { useApplicationContext } from "../context/ApplicationContext";
 
-// Mock data for candidates in pipeline
 const MOCK_CANDIDATES = [
   {
     id: 1,
@@ -94,7 +93,6 @@ export const CandidatePipeline = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [sortBy, setSortBy] = useState("date_desc");
 
-  // Filter and sort candidates
   const filteredCandidates = MOCK_CANDIDATES
     .filter(candidate => {
       const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
