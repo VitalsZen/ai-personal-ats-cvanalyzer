@@ -124,9 +124,4 @@ The project is configured for automated deployment:
     * Set Environment Variable: `VITE_API_URL` -> Link to your Hugging Face Space (e.g., `https://your-space-name.hf.space`).
     * Vercel will auto-deploy on every push to `main`.
 
-## 8. Contact
-For questions or further information about this project, please contact:
-
-* **Student Name:** Pham Huynh Tan Khang
-* **Email:** phtkhang1502@gmail.com
 
