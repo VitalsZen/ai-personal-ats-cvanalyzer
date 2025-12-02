@@ -26,7 +26,7 @@ class JobMatchResult(BaseModel):
     matched_keywords: List[str] = Field(description="List of matching technical skills")
     radar_chart: Dict[str, int] = Field(description="Scores 1-10 for 5 dimensions")
     # [NEW] Thêm trường lý do chấm điểm
-    radar_reasoning: Dict[str, str] = Field(description="Explanation for each radar score in Vietnamese")
+    radar_reasoning: Dict[str, Dict[str, str]] = Field(description="Reasoning in en and vi. Structure: {'Hard Skills': {'en': '...', 'vi': '...'}}")
     bilingual_content: Dict[str, Union[Dict, List]] = Field(description="Assessment content in EN and VI")
 
 CORE_PROMPT = """
@@ -92,11 +92,11 @@ Cấu trúc như sau:
         "Domain Knowledge": Integer
     }},
     "radar_reasoning": {{
-        "Hard Skills": "Giải thích ngắn gọn tiếng Việt tại sao cho điểm này...",
-        "Soft Skills": "...",
-        "Experience": "...",
-        "Education": "...",
-        "Domain Knowledge": "..."
+        "Hard Skills": {{ "en": "English explanation...", "vi": "Giải thích tiếng Việt..." }},
+        "Soft Skills": {{ "en": "...", "vi": "..." }},
+        "Experience": {{ "en": "...", "vi": "..." }},
+        "Education": {{ "en": "...", "vi": "..." }},
+        "Domain Knowledge": {{ "en": "...", "vi": "..." }}
     }},
     "bilingual_content": {{
         "general_assessment": {{
