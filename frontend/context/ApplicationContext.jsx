@@ -115,6 +115,9 @@ const TRANSLATIONS = {
     'result.strengths': 'Key Strengths',
     'result.weaknesses': 'Missing Skills / Gaps',
     'result.interview_questions': 'Interview Prep Questions',
+    'result.btn_why_score': 'Why this score?',
+    'result.btn_close_details': 'Close Details',
+    'result.drawer_title': 'Detailed Scoring Reasoning',
 
     // Compare Page
     'compare.save_btn': 'Save Result',
@@ -244,6 +247,9 @@ const TRANSLATIONS = {
     'result.strengths': 'Điểm mạnh nổi bật',
     'result.weaknesses': 'Điểm yếu & Kỹ năng thiếu',
     'result.interview_questions': 'Gợi ý câu hỏi phỏng vấn',
+    'result.btn_why_score': 'Tại sao có điểm này?',
+    'result.btn_close_details': 'Đóng chi tiết',
+    'result.drawer_title': 'Giải thích chi tiết điểm số',
 
     // Compare Page
     'compare.save_btn': 'Lưu kết quả',
