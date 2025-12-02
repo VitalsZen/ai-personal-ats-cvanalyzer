@@ -9,7 +9,7 @@ import { AnalysisResultView } from "../components/AnalysisResultView";
 
 export const Dashboard = () => {
   const navigate = useNavigate();
-  const { applications, t } = useApplicationContext();
+  const { applications, t, language } = useApplicationContext();
   const { jds } = useJdContext();
   const [selectedApp, setSelectedApp] = useState(null);
 
@@ -17,45 +17,32 @@ export const Dashboard = () => {
 
   // --- 1. Metrics Calculation ---
   const totalApplications = appList.length;
-  // Giả lập số liệu phân tích dựa trên số lượng app (hoặc lấy từ biến totalAnalyses trong context nếu muốn)
   const totalAnalyses = appList.length; 
   const savedJdsCount = jds.length;
   const perfectMatchesCount = appList.filter(app => app.matchScore >= 90).length;
 
-  // --- 2. Chart Data Logic (FIXED TIMEZONE) ---
+  // --- 2. Chart Data Logic ---
   const chartData = useMemo(() => {
     const data = [];
     const today = new Date();
     const mapCount = {};
 
-    // Bước A: Đếm số lượng đơn theo ngày (Dựa trên giờ địa phương máy tính)
     appList.forEach(app => {
         if (!app.createdAt) return;
-        
-        // Chuyển chuỗi UTC từ server thành Date Object
         let dateObj = new Date(app.createdAt);
-        // Nếu chuỗi thiếu chữ Z (do server cũ), tự thêm vào để đảm bảo là UTC
         if (typeof app.createdAt === 'string' && !app.createdAt.endsWith('Z')) {
             dateObj = new Date(app.createdAt + 'Z');
         }
-
-        // Lấy ngày theo định dạng YYYY-MM-DD của múi giờ địa phương (VN)
-        // 'en-CA' luôn trả về format YYYY-MM-DD, rất tiện để làm key
         const localDateKey = dateObj.toLocaleDateString('en-CA'); 
-        
         mapCount[localDateKey] = (mapCount[localDateKey] || 0) + 1;
     });
 
-    // Bước B: Tạo dữ liệu cho 30 ngày gần nhất
     for (let i = 29; i >= 0; i--) {
       const d = new Date();
       d.setDate(today.getDate() - i);
-      
-      // Key để so sánh (YYYY-MM-DD địa phương)
       const lookupKey = d.toLocaleDateString('en-CA');
-      
-      // Label hiển thị (DD/MM)
-      const displayLabel = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+      const locale = language === 'vi' ? 'vi-VN' : 'en-GB';
+      const displayLabel = d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
       
       data.push({
         name: displayLabel,
@@ -63,19 +50,18 @@ export const Dashboard = () => {
       });
     }
     return data;
-  }, [appList]);
+  }, [appList, language]);
 
   // --- 3. Recent Applications ---
-  const recentApplications = appList.slice(0, 5); // Lấy 5 cái mới nhất
+  const recentApplications = appList.slice(0, 5);
 
   const getStatusColor = (status) => {
-    // Chuẩn hóa status về chữ thường để so sánh cho chắc
     const s = (status || "").toLowerCase();
     if (s.includes('offer')) return "bg-green-100 text-green-700 border-green-200";
     if (s.includes('interview')) return "bg-purple-100 text-purple-700 border-purple-200";
     if (s.includes('reject')) return "bg-red-100 text-red-700 border-red-200";
     if (s.includes('wishlist')) return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    return "bg-blue-100 text-blue-700 border-blue-200"; // Applied/Default
+    return "bg-blue-100 text-blue-700 border-blue-200"; 
   };
 
   const getScoreColor = (score) => {
@@ -144,10 +130,14 @@ export const Dashboard = () => {
                 tick={{ fill: '#94a3b8', fontSize: 11 }} 
                 allowDecimals={false} 
               />
+              
+              {/* [FIX] Việt hóa Tooltip */}
               <Tooltip 
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
                 cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} 
+                formatter={(value) => [value, language === 'vi' ? 'Số lượng' : 'Count']}
               />
+              
               <Area 
                 type="monotone" 
                 dataKey="value" 
