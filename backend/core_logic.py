@@ -65,8 +65,8 @@ BƯỚC 4: CHẤM ĐIỂM RADAR (1-10) VÀ GIẢI THÍCH LÝ DO
 Chỉ trả về 1 JSON duy nhất.
 LƯU Ý QUAN TRỌNG:
 1. Không dùng Markdown (```json ... ```). Trả về raw text.
-2. KHÔNG ĐƯỢC có dấu phẩy (,) ở cuối danh sách hoặc object cuối cùng (NO TRAILING COMMAS).
-3. Đảm bảo cấu trúc ngoặc {} đóng mở chính xác.
+2. KHÔNG ĐƯỢC có dấu phẩy (,) ở cuối danh sách hoặc object cuối cùng. (NO TRAILING COMMAS).
+3. Đảm bảo cấu trúc ngoặc {{}} đóng mở chính xác. 
 
 Cấu trúc như sau:
 {{
@@ -138,8 +138,9 @@ def get_llm():
         else:
             print(f"✅ Đã tìm thấy API Key: {api_key[:5]}... (ẩn phần sau)")
             
+        # [FIX] Dùng gemini-1.5-flash để ổn định và thông minh hơn
         _llm_instance = ChatGoogleGenerativeAI(
-            model="gemini-flash-latest", 
+            model="gemini-1.5-flash", 
             temperature=0.2,
             google_api_key=api_key
         )
