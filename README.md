@@ -127,7 +127,6 @@ The project is configured for automated deployment:
 ## 8. Contact
 For questions or further information about this project, please contact:
 
-* **Student Name:** [Tên Của Bạn]
-* **Student ID:** [MSSV Của Bạn]
-* **Email:** [Email Của Bạn]
-* **University:** [Tên Trường Đại Học Của Bạn]
+* **Student Name:** Pham Huynh Tan Khang
+* **Email:** phtkhang1502@gmail.com
+
