@@ -1,3 +1,4 @@
+# backend/server.py
 import os
 import shutil
 import uvicorn
@@ -12,22 +13,24 @@ from sqlmodel import Session, select
 
 from core_logic import analyze_cv_logic
 from database import create_db_and_tables, get_session
+# Import models mới với cấu trúc JSONB
 from models import JobDescription, Application, User, JobDescriptionUpdate
 
 TEMP_DIR = "temp_uploads"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# LIFESPAN: Quản lý vòng đời DB 
+# --- LIFESPAN: Quản lý vòng đời DB ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("[DBA] Server init...")
+    print("🚀 [DBA] Server init...")
     try:
+        # Thử tạo bảng. Nếu DB chưa connect được thì bỏ qua để Server vẫn lên (tránh lỗi No Open Ports)
         create_db_and_tables()
-        print("[DBA] Database schema verified.")
+        print("✅ [DBA] Database schema verified.")
     except Exception as e:
-        print(f" [DBA] Database connection warning: {e}")
+        print(f"⚠️ [DBA] Database connection warning: {e}")
     yield
-    print(" Server shutting down...")
+    print("🛑 Server shutting down...")
 
 app = FastAPI(title="CareerFlow Enterprise API", version="3.0", lifespan=lifespan)
 
@@ -43,7 +46,7 @@ app.add_middleware(
 def read_root():
     return {"status": "ok", "message": "CareerFlow Database System is Operational"}
 
-# SECURITY: QUẢN LÝ PHIÊN NGƯỜI DÙNG (Lazy Registration) 
+# --- SECURITY: QUẢN LÝ PHIÊN NGƯỜI DÙNG (Lazy Registration) ---
 async def get_current_user(
     x_session_id: str = Header(...), 
     session: Session = Depends(get_session)
@@ -65,7 +68,7 @@ async def get_current_user(
     user = session.get(User, user_uuid)
     
     if not user:
-        print(f"[DBA] Detected new visitor. Creating Guest User: {user_uuid}")
+        print(f"🆕 [DBA] Detected new visitor. Creating Guest User: {user_uuid}")
         user = User(id=user_uuid, is_guest=True)
         session.add(user)
         session.commit()
@@ -73,14 +76,14 @@ async def get_current_user(
         
     return user
 
-# API: JD LIBRARY
+# --- API: JD LIBRARY (Đã áp dụng User Isolation) ---
 
 @app.get("/api/jds", response_model=List[JobDescription])
 def read_jds(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    # Trả về dữ liệu của chính user đó (Isolation)
+    # CHỈ trả về dữ liệu của chính user đó (Isolation)
     query = select(JobDescription).where(JobDescription.user_id == current_user.id).order_by(JobDescription.created_at.desc())
     return session.exec(query).all()
 
@@ -141,7 +144,7 @@ def delete_jd(
     session.commit()
     return {"ok": True}
 
-# API: APPLICATIONS
+# --- API: APPLICATIONS (Kết quả AI) ---
 
 @app.get("/api/applications", response_model=List[Application])
 def read_applications(
@@ -161,6 +164,7 @@ def create_application(
     if not app.created_at:
         app.created_at = datetime.now()
     
+    # Không cần json.dumps thủ công nữa, SQLModel + JSONB tự lo việc này
     session.add(app)
     session.commit()
     session.refresh(app)
@@ -205,14 +209,14 @@ def update_application(
     session.refresh(app)
     return app
 
-# ANALYZE ENDPOINT
+# --- ANALYZE ENDPOINT ---
 @app.post("/api/analyze")
 async def analyze_endpoint(
     file: UploadFile = File(...), 
     jd_text: Optional[str] = Form(None),
     jd_id: Optional[int] = Form(None),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user) # Bắt buộc phải có User mới cho phân tích
 ):
     final_jd_text = ""
     if jd_id:
@@ -234,7 +238,7 @@ async def analyze_endpoint(
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Gọi Core Logic (đã chuyển sang HuggingFace + Gemini FLASH)
+        # Gọi Core Logic (đã chuyển sang HuggingFace + Gemini 1.5 Flash)
         result = analyze_cv_logic(temp_path, final_jd_text)
         
         if "error" in result: raise HTTPException(500, detail=result["error"])
