@@ -26,11 +26,11 @@ async def lifespan(app: FastAPI):
     try:
         # Thử tạo bảng. Nếu DB chưa connect được thì bỏ qua để Server vẫn lên (tránh lỗi No Open Ports)
         create_db_and_tables()
-        print("✅ [DBA] Database schema verified.")
+        print(" [DBA] Database schema verified.")
     except Exception as e:
-        print(f"⚠️ [DBA] Database connection warning: {e}")
+        print(f"[DBA] Database connection warning: {e}")
     yield
-    print("🛑 Server shutting down...")
+    print(" Server shutting down...")
 
 app = FastAPI(title="CareerFlow Enterprise API", version="3.0", lifespan=lifespan)
 
@@ -68,7 +68,7 @@ async def get_current_user(
     user = session.get(User, user_uuid)
     
     if not user:
-        print(f"🆕 [DBA] Detected new visitor. Creating Guest User: {user_uuid}")
+        print(f" [DBA] Detected new visitor. Creating Guest User: {user_uuid}")
         user = User(id=user_uuid, is_guest=True)
         session.add(user)
         session.commit()
