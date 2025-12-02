@@ -1,4 +1,3 @@
-// frontend/src/context/JdContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const JdContext = createContext(undefined);
@@ -6,7 +5,7 @@ const JdContext = createContext(undefined);
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || 'http://127.0.0.1:8000';
 const JD_API = `${API_BASE}/api/jds`;
 
-// --- NEW: Helper lấy Session ID (Giống ApplicationContext) ---
+//  Helper lấy Session ID (Giống ApplicationContext)
 const getSessionId = () => {
     let id = localStorage.getItem('careerflow_session_id');
     if (!id) {
@@ -41,7 +40,6 @@ const formatVNTime = (dateString) => {
     title: item.title || 'Untitled',
     company: item.company || '',
     content: item.content || '',
-    // Áp dụng hàm format mới
     createdAt: formatVNTime(item.created_at),
     updatedAt: formatVNTime(item.updated_at)
   });
@@ -49,7 +47,7 @@ const formatVNTime = (dateString) => {
   const fetchJds = async () => {
     setLoading(true);
     try {
-      // --- CHANGE: Thêm Header ---
+
       const res = await fetch(JD_API, {
           headers: {
               'x-session-id': getSessionId()
@@ -67,7 +65,7 @@ const formatVNTime = (dateString) => {
 
   const addJd = async (jd) => {
     try {
-      // --- CHANGE: Thêm Header ---
+
       const res = await fetch(JD_API, {
         method: 'POST',
         headers: { 
@@ -91,7 +89,7 @@ const formatVNTime = (dateString) => {
   const updateJd = async (id, updates) => {
     try {
       console.log(`Sending PATCH to ${JD_API}/${id}`, updates);
-      // --- CHANGE: Thêm Header ---
+
       const res = await fetch(`${JD_API}/${id}`, {
         method: 'PATCH',
         headers: { 
@@ -120,7 +118,7 @@ const formatVNTime = (dateString) => {
 
   const deleteJd = async (id) => {
     try {
-      // --- CHANGE: Thêm Header ---
+ 
       const res = await fetch(`${JD_API}/${id}`, { 
           method: 'DELETE',
           headers: {
