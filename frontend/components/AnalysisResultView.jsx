@@ -22,7 +22,7 @@ export const AnalysisResultView = ({
   if (!data) return null;
 
   // Xử lý dữ liệu: Ghép điểm số và lý do vào một mảng
-const radarData = Object.entries(data.radar_chart).map(([subject, score]) => {
+  const radarData = Object.entries(data.radar_chart).map(([subject, score]) => {
     // Lấy lý do: Kiểm tra xem radar_reasoning có tồn tại và có đúng format đa ngôn ngữ không
     let reasonText = "No explanation provided.";
     if (data.radar_reasoning && data.radar_reasoning[subject]) {
@@ -39,10 +39,11 @@ const radarData = Object.entries(data.radar_chart).map(([subject, score]) => {
 
     return {
         originalSubject: subject,
+        // Dịch tên trục
         subject: language === 'vi' ? (RADAR_LABELS[subject] || subject) : subject,
         score,
         fullMark: 10,
-        reason: reasonText // Dùng biến đã xử lý
+        reason: reasonText
     };
   });
 
@@ -67,7 +68,7 @@ const radarData = Object.entries(data.radar_chart).map(([subject, score]) => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       {(customTitle || customSubtitle) && (
         <div className="bg-card-light dark:bg-card-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
              <div>
@@ -123,20 +124,24 @@ const radarData = Object.entries(data.radar_chart).map(([subject, score]) => {
           </div>
 
           {/* RIGHT: RADAR CHART & EXPLANATION */}
-          <div className="lg:col-span-7 bg-card-light dark:bg-card-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm flex flex-col">
+          <div className="lg:col-span-7 bg-card-light dark:bg-card-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm flex flex-col h-full min-h-[400px]">
               <h3 className="text-base font-bold text-text-light dark:text-text-dark mb-4">{t('result.radar_chart')}</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+              <div className="flex flex-col md:flex-row gap-6 h-full">
                   {/* Chart */}
-                  <div className="h-[280px] w-full relative">
+                  <div className="h-[300px] md:h-auto w-full md:w-1/2 relative flex-shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
-                          {/* GIẢM outerRadius từ 70% xuống 65% để chữ không bị che */}
-                          <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
+                          <RadarChart 
+                            cx="50%" 
+                            cy="50%" 
+                            outerRadius="60%" // [FIX] Giảm radius để chữ không bị cắt
+                            data={radarData}
+                            margin={{ top: 20, right: 30, bottom: 20, left: 30 }} // [FIX] Thêm margin để chừa chỗ cho chữ
+                          >
                               <PolarGrid stroke="#e2e8f0" />
-                              {/* Tăng font-size một chút cho dễ đọc */}
                               <PolarAngleAxis 
-                                  dataKey="subject" 
-                                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} 
+                                dataKey="subject" 
+                                tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }} // [FIX] Giảm font size
                               />
                               <PolarRadiusAxis angle={30} domain={[0, 10]} tick={false} axisLine={false} />
                               <Radar
@@ -151,17 +156,17 @@ const radarData = Object.entries(data.radar_chart).map(([subject, score]) => {
                       </ResponsiveContainer>
                   </div>
 
-                  {/* List Explanations (Scrollable) */}
-                  <div className="overflow-y-auto max-h-[280px] pr-2 space-y-3 custom-scrollbar">
+                  {/* List Explanations */}
+                  <div className="flex-1 overflow-y-auto max-h-[350px] pr-2 space-y-3 custom-scrollbar">
                       {radarData.map((item, index) => (
-                          <div key={index} className={`p-3 rounded-lg border ${getScoreColor(item.score).replace('text-', 'border-').split(' ')[2]} bg-white dark:bg-slate-800/50 shadow-sm`}>
+                          <div key={index} className={`p-3 rounded-lg border ${getScoreColor(item.score).replace('text-', 'border-').split(' ')[2]} bg-white dark:bg-slate-800/50 shadow-sm transition-all hover:shadow-md`}>
                               <div className="flex justify-between items-center mb-1.5">
                                   <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">{item.subject}</span>
                                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${getScoreColor(item.score)}`}>
                                       {item.score}/10
                                   </span>
                               </div>
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed italic border-t border-slate-100 dark:border-slate-700 pt-1.5 mt-1">
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed italic border-t border-slate-100 dark:border-slate-700 pt-1.5 mt-1">
                                   "{item.reason}"
                               </p>
                           </div>
