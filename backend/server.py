@@ -22,7 +22,7 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 # --- LIFESPAN: Quản lý vòng đời DB ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 [DBA] Server init...")
+    print(" [DBA] Server init...")
     try:
         # Thử tạo bảng. Nếu DB chưa connect được thì bỏ qua để Server vẫn lên (tránh lỗi No Open Ports)
         create_db_and_tables()
