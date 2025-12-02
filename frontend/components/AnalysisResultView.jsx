@@ -22,15 +22,29 @@ export const AnalysisResultView = ({
   if (!data) return null;
 
   // Xử lý dữ liệu: Ghép điểm số và lý do vào một mảng
-  const radarData = Object.entries(data.radar_chart).map(([subject, score]) => ({
-    originalSubject: subject,
-    // Nếu đang ở chế độ tiếng Việt thì dịch, không thì giữ nguyên
-    subject: language === 'vi' ? (RADAR_LABELS[subject] || subject) : subject,
-    score,
-    fullMark: 10,
-    // Lấy lý do từ field mới (nếu có)
-    reason: data.radar_reasoning ? data.radar_reasoning[subject] : "No explanation provided."
-  }));
+const radarData = Object.entries(data.radar_chart).map(([subject, score]) => {
+    // Lấy lý do: Kiểm tra xem radar_reasoning có tồn tại và có đúng format đa ngôn ngữ không
+    let reasonText = "No explanation provided.";
+    if (data.radar_reasoning && data.radar_reasoning[subject]) {
+        const reasonObj = data.radar_reasoning[subject];
+        // Nếu là object có en/vi (Format mới)
+        if (typeof reasonObj === 'object') {
+            reasonText = reasonObj[language] || reasonObj['en'] || "";
+        } 
+        // Nếu là string (Format cũ - tương thích ngược)
+        else if (typeof reasonObj === 'string') {
+            reasonText = reasonObj;
+        }
+    }
+
+    return {
+        originalSubject: subject,
+        subject: language === 'vi' ? (RADAR_LABELS[subject] || subject) : subject,
+        score,
+        fullMark: 10,
+        reason: reasonText // Dùng biến đã xử lý
+    };
+  });
 
   const scoreData = [
     { name: 'Matched', value: data.matching_score.percentage, color: '#137fec' },
@@ -116,9 +130,14 @@ export const AnalysisResultView = ({
                   {/* Chart */}
                   <div className="h-[280px] w-full relative">
                       <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                          {/* GIẢM outerRadius từ 70% xuống 65% để chữ không bị che */}
+                          <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
                               <PolarGrid stroke="#e2e8f0" />
-                              <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} />
+                              {/* Tăng font-size một chút cho dễ đọc */}
+                              <PolarAngleAxis 
+                                  dataKey="subject" 
+                                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} 
+                              />
                               <PolarRadiusAxis angle={30} domain={[0, 10]} tick={false} axisLine={false} />
                               <Radar
                                   name="Score"
