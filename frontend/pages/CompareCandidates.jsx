@@ -1,15 +1,14 @@
-// ...existing code...
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { Icon } from "../components/Icon";
 import { useApplicationContext } from "../context/ApplicationContext";
-// Import thêm JdContext để dùng hàm addJd
 import { useJdContext } from "../context/JdContext"; 
 import { AnalysisResultView } from "../components/AnalysisResultView";
 
 export const CompareCandidates = () => {
   const { lastAnalysisResult, lastJdSource, addApplication, t } = useApplicationContext();
+  
   // Lấy danh sách JD và hàm thêm mới
   const { jds, addJd } = useJdContext(); 
   
@@ -47,7 +46,7 @@ export const CompareCandidates = () => {
       setErrors({ jobTitle: "" });
   }, [displaySource, isFromLibrary, jds, isSaveModalOpen]);
 
-  // --- HÀM SAVE ĐÃ CẬP NHẬT TÍNH NĂNG AUTO-SAVE JD ---
+  //  AUTO-SAVE JD 
   const handleSave = async (e) => {
       e.preventDefault();
       if (!displayResult) return;
@@ -58,7 +57,7 @@ export const CompareCandidates = () => {
           return;
       }
 
-      // 1. Tự động lưu JD nếu là Manual Paste (Không có trong thư viện)
+      // Tự động lưu JD nếu là Manual Paste
       if (!isFromLibrary && displaySource?.content) {
           try {
               console.log("Auto-saving new JD to Library...");
