@@ -19,7 +19,7 @@ from models import JobDescription, Application, User, JobDescriptionUpdate
 TEMP_DIR = "temp_uploads"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# --- LIFESPAN: Quản lý vòng đời DB ---
+# LIFESPAN: Quản lý vòng đời DB
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print(" [DBA] Server init...")
@@ -46,7 +46,7 @@ app.add_middleware(
 def read_root():
     return {"status": "ok", "message": "CareerFlow Database System is Operational"}
 
-# --- SECURITY: QUẢN LÝ PHIÊN NGƯỜI DÙNG (Lazy Registration) ---
+# SECURITY: QUẢN LÝ PHIÊN NGƯỜI DÙNG (Lazy Registration)
 async def get_current_user(
     x_session_id: str = Header(...), 
     session: Session = Depends(get_session)
@@ -76,7 +76,7 @@ async def get_current_user(
         
     return user
 
-# --- API: JD LIBRARY (Đã áp dụng User Isolation) ---
+# API: JD LIBRARY (Đã áp dụng User Isolation)
 
 @app.get("/api/jds", response_model=List[JobDescription])
 def read_jds(
@@ -144,7 +144,7 @@ def delete_jd(
     session.commit()
     return {"ok": True}
 
-# --- API: APPLICATIONS (Kết quả AI) ---
+# API: APPLICATIONS (Kết quả AI)
 
 @app.get("/api/applications", response_model=List[Application])
 def read_applications(
@@ -209,7 +209,7 @@ def update_application(
     session.refresh(app)
     return app
 
-# --- ANALYZE ENDPOINT ---
+# ANALYZE ENDPOINT
 @app.post("/api/analyze")
 async def analyze_endpoint(
     file: UploadFile = File(...), 
