@@ -207,7 +207,7 @@ def analyze_cv_logic(file_path: str, jd_text: str):
             | parser
         )
 
-        print("🤖 Đang phân tích với Gemini 1.5 Flash...")
+        print(" Đang phân tích với Gemini 1.5 Flash...")
         result = chain.invoke(jd_text)
         
         vectorstore.delete_collection() 
