@@ -136,7 +136,7 @@ def get_llm():
     global _llm_instance
     if _llm_instance is None:
         api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key: print("❌ LỖI: GOOGLE_API_KEY chưa cấu hình!")
+        if not api_key: print("LỖI: GOOGLE_API_KEY chưa cấu hình!")
         
         _llm_instance = ChatGoogleGenerativeAI(
             model="gemini-flash-latest", 
@@ -223,7 +223,7 @@ def analyze_cv_logic(file_path: str, jd_text: str):
             jd_text=jd_text
         )
         
-        print("🤖 Analyzing with Gemini 1.5 Flash...")
+        print(" Analyzing with Gemini 1.5 Flash...")
         response = llm.invoke(final_prompt_value)
         
         # Xử lý kết quả
@@ -232,12 +232,12 @@ def analyze_cv_logic(file_path: str, jd_text: str):
         try:
             result = json.loads(cleaned_content)
         except json.JSONDecodeError as e:
-            print(f"❌ JSON Error: {cleaned_content[:100]}...")
+            print(f" JSON Error: {cleaned_content[:100]}...")
             return {"error": "AI returned invalid JSON. Please try again."}
         
         vectorstore.delete_collection() 
         return result
 
     except Exception as e:
-        print(f"❌ System Error: {str(e)}")
+        print(f" System Error: {str(e)}")
         return {"error": f"System Error: {str(e)}"}
