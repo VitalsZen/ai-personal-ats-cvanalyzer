@@ -1,19 +1,18 @@
 # backend/core_logic.py
 import os
 import time
-import json
-import re
 from dotenv import load_dotenv
 from typing import List, Dict, Union
 
 # --- Imports ---
-import pdfplumber 
+from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_google_genai import HarmBlockThreshold, HarmCategory
 from langchain_chroma import Chroma
+
 from langchain_huggingface import HuggingFaceEmbeddings 
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from pydantic import BaseModel, Field
 
@@ -26,9 +25,10 @@ class JobMatchResult(BaseModel):
     requirements_breakdown: Dict[str, str] = Field(description="Ratios for must-have and nice-to-have criteria")
     matched_keywords: List[str] = Field(description="List of matching technical skills")
     radar_chart: Dict[str, int] = Field(description="Scores 1-10 for 5 dimensions")
-    radar_reasoning: Dict[str, str] = Field(description="Explanation for each radar score in Vietnamese")
+    # [NEW] Thêm trường lý do chấm điểm
+    radar_reasoning: Dict[str, Dict[str, str]] = Field(description="Reasoning in en and vi. Structure: {'Hard Skills': {'en': '...', 'vi': '...'}}")
     bilingual_content: Dict[str, Union[Dict, List]] = Field(description="Assessment content in EN and VI")
-    
+
 CORE_PROMPT = """
 Bạn là một Trợ lý Tuyển dụng AI chuyên nghiệp (JobMatchr). Nhiệm vụ của bạn là phân tích CV (được cung cấp dưới dạng text) và Mô tả công việc (JD - mỗi dòng là một yêu cầu).
 
@@ -136,24 +136,23 @@ def get_llm():
     global _llm_instance
     if _llm_instance is None:
         api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key: print("LỖI: GOOGLE_API_KEY chưa cấu hình!")
-        
+        if not api_key:
+            print(" LỖI NGHIÊM TRỌNG: Không tìm thấy GOOGLE_API_KEY trong biến môi trường!")
+        else:
+            print(f" Đã tìm thấy API Key: {api_key[:5]}... (ẩn phần sau)")
+            
+        # [FIX] Dùng gemini-1.5-flash để ổn định và thông minh hơn
         _llm_instance = ChatGoogleGenerativeAI(
             model="gemini-flash-latest", 
             temperature=0.2,
-            google_api_key=api_key,
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            }
+            google_api_key=api_key
         )
     return _llm_instance
 
 def get_embeddings():
     global _embedding_instance
     if _embedding_instance is None:
+        # Dùng Hugging Face (CPU) để không cần Key Google ở bước này
         _embedding_instance = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={'device': 'cpu'},
@@ -161,83 +160,60 @@ def get_embeddings():
         )
     return _embedding_instance
 
-# Hàm vệ sinh text (Fix lỗi ngoặc nhọn trong CV code/css)
-def sanitize_text_for_prompt(text):
-    if not text: return ""
-    return text.replace("{", "(").replace("}", ")")
-
-def clean_json_string(json_str):
-    try:
-        start_idx = json_str.find('{')
-        end_idx = json_str.rfind('}')
-        if start_idx != -1 and end_idx != -1:
-            json_str = json_str[start_idx : end_idx + 1]
-        json_str = re.sub(r",\s*([\]}])", r"\1", json_str)
-        return json_str
-    except Exception:
-        return json_str 
-
 def analyze_cv_logic(file_path: str, jd_text: str):
     if not os.getenv("GOOGLE_API_KEY"):
-        return {"error": "Server Config Error: Missing GOOGLE_API_KEY"}
+        return {"error": "Server chưa nhận được GOOGLE_API_KEY. Hãy kiểm tra Settings trên Hugging Face."}
 
-    # 1. Đọc PDF
-    full_text = ""
+    # 1. Xử lý PDF
     try:
-        with pdfplumber.open(file_path) as pdf:
-            for page in pdf.pages:
-                full_text += (page.extract_text() or "") + "\n"
+        loader = PDFPlumberLoader(file_path)
+        docs = loader.load()
+        if not docs:
+            return {"error": "Không thể đọc nội dung từ file PDF."}
         
-        if not full_text.strip(): return {"error": "Empty PDF content"}
-        
-        # [FIX] Vệ sinh văn bản
-        full_text = sanitize_text_for_prompt(full_text)
-        jd_text = sanitize_text_for_prompt(jd_text)
-
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        docs = text_splitter.create_documents([full_text])
+        splits = text_splitter.split_documents(docs)
     except Exception as e:
-        return {"error": f"PDF Error: {str(e)}"}
+        return {"error": f"Lỗi đọc PDF: {str(e)}"}
 
-    # 2. RAG Logic
+    # 2. Vector Store & Chain
     try:
         embeddings = get_embeddings()
         llm = get_llm()
 
+        # Nếu lỗi xảy ra ở dòng này -> Code chưa cập nhật (vẫn dùng Google Embeddings)
         vectorstore = Chroma.from_documents(
-            documents=docs,
+            documents=splits,
             embedding=embeddings,
-            collection_name=f"cv_{int(time.time())}",
+            collection_name=f"cv_analysis_{int(time.time())}",
         )
         retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-        
-        # [FIX QUAN TRỌNG] Thay đổi phương thức gọi retriever
-        # Trong bản LangChain mới, dùng .invoke() thay vì .get_relevant_documents()
-        relevant_docs = retriever.invoke(jd_text)
-        context_text = "\n\n".join([d.page_content for d in relevant_docs])
 
-        # Gọi LLM trực tiếp (Tránh lỗi Chain missing variables)
+        parser = JsonOutputParser(pydantic_object=JobMatchResult)
         prompt = ChatPromptTemplate.from_template(CORE_PROMPT)
-        final_prompt_value = prompt.format_messages(
-            cv_text=context_text, 
-            jd_text=jd_text
+        prompt = prompt.partial(format_instructions=parser.get_format_instructions())
+
+        def format_docs(docs):
+            return "\n\n".join(d.page_content for d in docs)
+
+        # [FIX] Định nghĩa chain rõ ràng hơn để tránh lỗi "Missing variables"
+        chain = (
+            {
+                "cv_text": retriever | format_docs, 
+                "jd_text": RunnablePassthrough() 
+            }
+            | prompt
+            | llm
+            | parser
         )
-        
-        print(" Analyzing with Gemini 1.5 Flash...")
-        response = llm.invoke(final_prompt_value)
-        
-        # Xử lý kết quả
-        cleaned_content = clean_json_string(response.content)
-        
-        try:
-            result = json.loads(cleaned_content)
-        except json.JSONDecodeError as e:
-            print(f" JSON Error: {cleaned_content[:100]}...")
-            return {"error": "AI returned invalid JSON. Please try again."}
+
+        print("🤖 Đang phân tích với Gemini 1.5 Flash...")
+        result = chain.invoke(jd_text)
         
         vectorstore.delete_collection() 
         return result
 
     except Exception as e:
-        print(f" System Error: {str(e)}")
-        return {"error": f"System Error: {str(e)}"}
+        # In lỗi chi tiết ra console server để debug
+        print(f" LỖI PHÂN TÍCH: {str(e)}")
+        return {"error": f"Lỗi phân tích AI: {str(e)}"}
