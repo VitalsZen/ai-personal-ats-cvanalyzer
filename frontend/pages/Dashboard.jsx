@@ -15,13 +15,13 @@ export const Dashboard = () => {
 
   const appList = applications || [];
 
-  // Metrics Calculation 
+  // Tính metric 
   const totalApplications = appList.length;
   const totalAnalyses = appList.length; 
   const savedJdsCount = jds.length;
   const perfectMatchesCount = appList.filter(app => app.matchScore >= 90).length;
 
-  // Chart Data Logic
+  // Biểu đồ
   const chartData = useMemo(() => {
     const data = [];
     const today = new Date();
@@ -52,7 +52,7 @@ export const Dashboard = () => {
     return data;
   }, [appList, language]);
 
-  // --- 3. Recent Applications ---
+  // Cập nhật gần đây
   const recentApplications = appList.slice(0, 5);
 
   const getStatusColor = (status) => {
