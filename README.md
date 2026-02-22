@@ -22,7 +22,7 @@ app_port: 7860
 ## 2. Project Description
 CareerFlow is a modern web application designed to assist job seekers in optimizing their applications. By leveraging **Retrieval-Augmented Generation (RAG)**, the system analyzes the compatibility between a candidate's CV (PDF) and a Job Description (JD).
 
-It utilizes **Google Gemini 1.5 Flash** for high-level reasoning and **HuggingFace Embeddings** (running locally via CPU) for cost-effective vector search. The system features a "Guest Mode" architecture, allowing instant usage without registration while maintaining data privacy via **PostgreSQL**.
+It utilizes **Google Gemini Flash (latest model via API)** for high-level reasoning and **HuggingFace Embeddings** (running locally via CPU) for cost-effective vector search. The system features a "Guest Mode" architecture, allowing instant usage without registration while maintaining data privacy via **PostgreSQL**.
 
 **Key Capabilities:**
 * **Instant Analysis:** Matches CV keywords, experience, and skills against JD requirements.
