@@ -1,10 +1,9 @@
-# --- GLOBAL ---
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# --- ENV VARIABLES (Rất quan trọng: Không được public API Key) ---
+
 .env
 .env.local
 .env.development.local
@@ -13,7 +12,7 @@ Thumbs.db
 backend/.env
 frontend/.env
 
-# --- BACKEND (Python) ---
+
 backend/__pycache__/
 *.py[cod]
 *$py.class
@@ -27,7 +26,7 @@ backend/database.db
 # File upload tạm thời (File PDF user upload)
 backend/temp_uploads/
 
-# --- FRONTEND (Node/React) ---
+
 frontend/node_modules/
 frontend/dist/
 frontend/build/
@@ -35,5 +34,4 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
-# --- MISC ---
 *.log
