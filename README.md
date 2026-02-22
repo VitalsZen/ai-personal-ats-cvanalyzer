@@ -54,7 +54,7 @@ The project follows a Hybrid Cloud Architecture to optimize performance and cost
 2.  **Backend:** Containerized with **Docker** and hosted on **Hugging Face Spaces** (utilizing 16GB RAM for AI tasks).
 3.  **Database:** **PostgreSQL** hosted on **Supabase** (Transaction Pooler mode).
 4.  **AI Services:**
-    * **LLM:** Google Gemini 1.5 Flash (via API).
+    * **LLM:** Google Gemini Flash Lastet (via API).
     * **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2` (Running locally in Docker).
 
 ## 5. Requirements
@@ -117,19 +117,29 @@ The project follows a Hybrid Cloud Architecture to optimize performance and cost
     ```
 5.  Access the app at `http://localhost:5173`.
 
-## 7. Deployment Guide (CI/CD)
+## 7. Deployment Guide
 
-The project is configured for automated deployment:
+The project is configured for deployment across separate services:
 
-1.  **Backend (Hugging Face Spaces):**
-    * Connect GitHub Repository to Hugging Face Space.
-    * Set Secrets in Space Settings: `GOOGLE_API_KEY`, `DATABASE_URL` (Use connection string with port 6543).
-    * The `Dockerfile` in the root will automatically build the environment.
+1. **Backend (Hugging Face Spaces):**
+   * Connect the GitHub repository to a Hugging Face Space.
+   * Set the following Secrets in Space Settings:
+     - `GOOGLE_API_KEY`
+     - `DATABASE_URL` (Use the connection string with port `6543`).
+   * The `Dockerfile` in the root directory will automatically build and run the backend environment.
 
-2.  **Frontend (Vercel):**
-    * Connect GitHub Repository to Vercel.
-    * Set Environment Variable: `VITE_API_URL` -> Link to your Hugging Face Space (e.g., `https://your-space-name.hf.space`).
-    * Vercel will auto-deploy on every push to `main`.
+2. **Frontend (Vercel):**
+   * Connect the GitHub repository to Vercel.
+   * Set the Environment Variable:
+     - `VITE_API_URL` → Your Hugging Face Space URL (e.g., `https://your-space-name.hf.space`).
+   * Vercel will automatically deploy on every push to the `main` branch.
+
+3. **Database (Supabase):**
+   * Create a new project in Supabase.
+   * Enable **Connection Pooling** in Database Settings.
+   * Copy the Pooler (Transaction Mode) connection string using port `6543`.
+   * Enable the `pgvector` extension via the SQL Editor if implementing RAG or vector search.
+   * Store the connection string in the backend as the `DATABASE_URL` secret.
 
 ## Contact
 
